@@ -1,4 +1,4 @@
-For Rupali Bank PLC, the most practical enterprise architecture is to centralize all Windows Event Logs from domain-joined PCs and servers into a single log server, then use Wazuh + Windows Event Forwarding (WEF) for collection, storage, search, alerting, and dashboards. Since I already know you use Wazuh, Prometheus, Grafana, Dell/HP endpoints, Windows Server, and Active Directory, I would build it this way.
+
 
 Recommended architecture
 
