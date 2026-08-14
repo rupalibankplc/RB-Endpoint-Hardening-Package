@@ -1,0 +1,181 @@
+For Rupali Bank PLC, the most practical enterprise architecture is to centralize all Windows Event Logs from domain-joined PCs and servers into a single log server, then use Wazuh + Windows Event Forwarding (WEF) for collection, storage, search, alerting, and dashboards. Since I already know you use Wazuh, Prometheus, Grafana, Dell/HP endpoints, Windows Server, and Active Directory, I would build it this way.
+
+Recommended architecture
+
+Windows PCs / Servers
+
+WEF / Wazuh Agent
+
+Wazuh Server
+
+Dashboards & Alerts
+
+This scales well from 100 to 5,000+ endpoints, supports Security, System, Application, PowerShell, Sysmon, and custom logs, and gives centralized search, dashboards, alerting, and compliance reporting.
+
+Best option: Wazuh + Windows Event Forwarding
+
+Components
+
+Component	Role
+Windows PCs / Servers	Generate event logs
+Wazuh Agent	Collect logs and send securely
+Windows Event Forwarding (WEF)	Native Microsoft log forwarding
+Wazuh Server	Store, index, correlate, alert
+OpenSearch Dashboard	Search and visualize events
+
+For a banking environment, I would use WEF for native Windows log collection and Wazuh for SIEM and security analytics.
+
+Server sizing (1,000 endpoints)
+
+* OS: Rocky Linux 9 or Ubuntu Server 24.04
+* CPU: 8-16 cores
+* RAM: 32-64 GB
+* Storage: 1-2 TB SSD (prefer RAID1/RAID10)
+* Network: 1 Gbps minimum
+* Retention: 90-180 days online
+
+Step 1: Install Wazuh Server
+
+On a dedicated server:
+
+This installs:
+
+* Wazuh Manager
+* OpenSearch
+* OpenSearch Dashboards
+* Filebeat
+
+Dashboard:
+
+https://wazuh-server-ip
+
+Step 2: Configure Windows Event Collection
+
+On each Windows endpoint (via GPO or manual install), install the Wazuh Agent.
+
+Example silent install:
+
+Edit:
+
+C:\Program Files (x86)\ossec-agent\ossec.conf
+
+Enable event channels:
+
+Restart the agent:
+
+Step 3: Enable Windows Event Forwarding (WEF)
+
+On a Windows Server (for example RBL-DC01):
+
+Enable WEF:
+
+This creates the Windows Event Collector service.
+
+Step 4: Create a GPO for all domain computers
+
+GPMC Path
+
+Computer Configuration → Policies → Administrative Templates → Windows Components → Event Forwarding
+
+Enable:
+
+* Configure target Subscription Manager
+
+Value:
+
+Also enable WinRM:
+
+Computer Configuration → Policies → Administrative Templates → Windows Components → Windows Remote Management (WinRM)
+
+Enable:
+
+* Allow remote server management through WinRM
+
+Step 5: Create Event Subscriptions
+
+Open Event Viewer → Subscriptions → Create Subscription
+
+Example:
+
+RB-Security-Logs
+
+Source computers:
+
+* Domain Computers
+
+Events:
+
+* Security
+* System
+* Application
+* PowerShell Operational
+* Sysmon (if deployed)
+
+Delivery:
+
+* Minimize Latency
+
+Step 6: Forward WEF logs to Wazuh
+
+On the WEF server, configure Wazuh Agent to monitor:
+
+Now all forwarded logs are sent to Wazuh automatically.
+
+Critical events to monitor
+
+Event ID	Description
+4624	Successful logon
+4625	Failed logon
+4634	Logoff
+4648	Explicit credentials used
+4672	Special privileges assigned
+4688	Process creation
+4697	Service installed
+4720	User account created
+4728 / 4732	Added to privileged groups
+4740	Account locked out
+4768 / 4769	Kerberos authentication
+4776	NTLM authentication
+1102	Audit log cleared
+
+These are especially important for banking security monitoring.
+
+Dashboards
+
+In Wazuh / OpenSearch create dashboards for:
+
+* Failed logons by branch
+* USB device insertions
+* Wi-Fi adapter installations
+* Privileged group changes
+* New local administrator accounts
+* PowerShell execution
+* RDP logons
+* Branch PC compliance status
+
+Alerting
+
+Configure alerts for:
+
+* More than 10 failed logons in 5 minutes
+* USB storage insertion
+* Wi-Fi dongle installation attempt
+* Audit log cleared (1102)
+* Local admin group modified
+* New service installed
+* BitLocker disabled
+* Windows Defender disabled
+
+Alerts can be sent by email, Microsoft Teams, Slack, Telegram, or SMS gateway.
+
+Recommended for Rupali Bank
+
+Since you already use Wazuh, I would deploy:
+
+* 2 Domain Controllers
+* 1 Dedicated WEF Server (Windows Server 2022)
+* 1 Wazuh Server (Rocky Linux 9, 16 vCPU, 64 GB RAM, 2 TB SSD)
+* Wazuh Agent on every branch PC and server
+* Sysmon deployed through GPO
+* 90-day online retention
+* Daily backup of OpenSearch indices
